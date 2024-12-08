@@ -3,7 +3,7 @@ general analysis for all RNA-Seq
 
 # 目录
 
-- [MicroArray matrix get](#micro array RNA-seq data)
+- [MicroArray matrix get](# micro array RNA-seq data)
 
 
 
