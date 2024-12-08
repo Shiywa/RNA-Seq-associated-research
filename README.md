@@ -3,11 +3,11 @@ general analysis for all RNA-Seq
 
 # 目录
 
-- [miRNA](#miRNA)
+- [MicroArray matrix get](#micro array RNA-seq data)
 
 
 
-## miRNA
+## micro array RNA-seq data 
 
 ### 将GEO的micro array文件转换为matrix文件
 
