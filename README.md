@@ -58,6 +58,26 @@ rownames(exp) <- exp$symbol
 exp <- exp[,-(1:2)]
 ```
 
+有一种情况，可能因为微阵列的数据比较久远，对应平台的注释文件在`biomanager`下载不到，但是GEO数据库本身其实提供了微阵列数据的注释信息。
+同样根据`index`得到对应平台号，然后使用`getGEO`获得对应注释信息，同时将注释信息和矩阵合并。
+
+```
+index = gset[[1]]@annotation
+gpl <- getGEO(index)
+platform <- Table(gpl)
+platform$ID <- as.character(platform$ID)
+
+ex <- as.data.frame(ex) 
+
+exp <- ex %>% mutate(ID=rownames(ex)) %>% inner_join(platform,by="ID") %>% 
+  dplyr::select(ID, GENE_SYMBOL,everything()) ### everything() 加括号
+exp <- exp[!duplicated(exp$GENE_SYMBOL),] 
+exp <- exp[-which(exp$SPOT_ID == "empty"),]
+rownames(exp) <- exp$GENE_SYMBOL 
+exp <- exp[,grep("^GSM",colnames(exp))]
+
+```
+
 
 
 
