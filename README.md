@@ -11,11 +11,11 @@ general analysis for all RNA-Seq
 
 ### 将GEO的micro array文件转换为matrix文件
 
-如果网络不好可以直接下载seris里的matrix文件到本地，然后自动加载。注意matrix文件要放在当前工作目录下。
+~~如果网络不好可以直接下载seris里的matrix文件到本地，然后自动加载。注意matrix文件要放在当前工作目录下。~~
+原来并不需要提前下载这个文件，有GEO号就可以自动下载到`destdir`设定的路径
 
 ```
 library(GEOquery)
-gset <- getGEO("GSE80697", getGPL=FALSE,AnnotGPL = F)
 gset <- getGEO("GSE80697", GSEMatrix =TRUE, getGPL=FALSE,destdir = ".",AnnotGPL = F)
 ```
 
