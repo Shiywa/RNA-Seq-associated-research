@@ -3,7 +3,7 @@ general analysis for all RNA-Seq
 
 # 目录
 
-- [MicroArray matrix get from GEO](# micro-Array)
+- [从GEO数据库中根据GEO编号获取micro Array矩阵及注释数据](#micro-Array)
 
 
 
