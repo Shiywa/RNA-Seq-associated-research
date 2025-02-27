@@ -87,7 +87,7 @@ exp <- exp[,grep("^GSM",colnames(exp))]
 
 [VISION原文](https://www.nature.com/articles/s41467-019-12235-0)以及[VISION github 页面](https://github.com/YosefLab/VISION)详细介绍了相应的功能及原理。
 
-简单来说，VISION通过预先的降维（例如PCA）构建细胞在多维空间的相似性图，然后基于Geary-C value评估在多维空间的相似性图上是否存在特征一致性，Geary-C value越大代表对应特征集存在一组特定基因在细胞的多维空间的相似性图具有一致性表达，提示该特定功能可能有特定激活的趋势。
+简单来说，**VISION**通过预先的降维（例如PCA）构建细胞在多维空间的相似性图，然后基于**Geary-C value**评估在多维空间的相似性图上是否存在特征一致性，Geary-C value越大代表对应特征集存在一组特定基因在细胞的多维空间的相似性图具有一致性表达，提示该特定功能可能有特定激活的趋势。
 这个方法理论上可以帮助挖掘新的细胞类型，且可应用到空间组学的研究。
 在确定了对应特征集在多维空间具有特异性活性后，基于细胞注释信息，使用**AUCell**评估不同细胞类型中该特征集的AUC score。
 
@@ -113,7 +113,7 @@ vis <- addProjection(vis, "UMAP", Assay.obj@reductions$harmony_umap@cell.embeddi
 
 saveRDS(vis,file = "VISION_result.rds")
 ```
-由于VISION本身基于web开发了交互式的可视化工具，但是没有便捷的绘图函数，所以需要自己编写画图的函数。
+由于**VISION**本身基于web开发了交互式的可视化工具，但是没有便捷的绘图函数，所以需要自己编写画图的函数。
 
 1. 从结果中提取数据,包括Geary-C value，AUC value以及AUC对应的FDR：
 ```
