@@ -163,6 +163,8 @@ p <- Heatmap(full_AUC,cluster_rows = T,name = "AUC",show_row_dend = F,show_colum
 
 p
 ```
+<img width="705" alt="image" src="https://github.com/user-attachments/assets/753f05fb-1d10-46b6-b6c6-887afda61b90" />
+
 [pathway_AUC_C_value_Heatmap2.pdf](https://github.com/user-attachments/files/19001200/pathway_AUC_C_value_Heatmap2.pdf)
 
 
