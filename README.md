@@ -4,8 +4,8 @@ general analysis for all RNA-Seq
 # 目录
 
 - [从GEO数据库中根据GEO编号获取micro Array矩阵及注释数据](#micro-Array)
-- [基因集打分策略](#micro-Array)
-  - [使用VISION](#micro-Array)
+- [基因集打分策略](#基因集打分策略)
+  - [使用VISION](#VISION)
   - [使用GSVA](#micro-Array)
   
 ## micro-Array
@@ -79,7 +79,91 @@ exp <- exp[,grep("^GSM",colnames(exp))]
 
 ```
 
+## 基因集打分策略
 
+无论在bulkRNA-seq还是scRNA-seq中，基于基因的表达进行特定功能基因集的打分都是必不可少的，以下总结了几种打分的方法。
+
+### VISION 
+
+[VISION原文](https://www.nature.com/articles/s41467-019-12235-0)以及[VISION github 页面](https://github.com/YosefLab/VISION)详细介绍了相应的功能及原理。
+
+简单来说，VISION通过预先的降维（例如PCA）构建细胞在多维空间的相似性图，然后基于Geary-C value评估在多维空间的相似性图上是否存在特征一致性，Geary-C value越大代表对应特征集存在一组特定基因在细胞的多维空间的相似性图具有一致性表达，提示该特定功能可能有特定激活的趋势。
+这个方法理论上可以帮助挖掘新的细胞类型，且可应用到空间组学的研究。
+在确定了对应特征集在多维空间具有特异性活性后，基于细胞注释信息，使用**AUCell**评估不同细胞类型中该特征集的AUC score。
+
+```
+count <- Assay.obj@assays$RNA@counts
+n.umi <- colSums(count)
+scaled_counts <- t(t(count) / n.umi) * median(n.umi)
+
+meta <- Assay.obj@meta.data
+
+table(mock.ctrl.mac.obj$deve_anno)/dim(mock.ctrl.mac.obj@assays$RNA)[2]
+## 鉴于macrophage中最小的群体所占比例为0.5%，所以默认的预制0.1%是可取的
+
+vis <- Vision(scaled_counts,
+              signatures = c("KEGG_metabolism_pathway.gmt"), # 需要记忆集gmt文件
+              meta = meta[,c("deve_anno","State")])
+options(mc.cores = 96)
+
+# 一步法分析
+vis <- analyze(vis,hotspot =F) # hotspot是空间数据专用参数
+
+vis <- addProjection(vis, "UMAP", Assay.obj@reductions$harmony_umap@cell.embeddings)
+
+saveRDS(vis,file = "VISION_result.rds")
+```
+由于VISION本身基于web开发了交互式的可视化工具，但是没有便捷的绘图函数，所以需要自己编写画图的函数。
+
+1. 从结果中提取数据,包括Geary-C value，AUC value以及AUC对应的FDR：
+```
+sigScores <- getSignatureScores(vis)
+
+full_C_value <- vis@LocalAutocorrelation$Signatures
+
+full_C_value <- full_C_value[order(full_C_value[,1],decreasing = T),]
+
+full_AUC <- do.call(cbind, lapply(vis@ClusterComparisons$Signatures$deve_anno, `[[`, 1))
+rownames(full_AUC) <- rownames(vis@ClusterComparisons$Signatures$deve_anno[[1]])
+
+full_AUC_FDR <- do.call(cbind, lapply(vis@ClusterComparisons$Signatures$deve_anno, `[[`, 3))
+rownames(full_AUC_FDR) <- rownames(vis@ClusterComparisons$Signatures$deve_anno[[1]])
+
+full_AUC <- full_AUC[rownames(full_C_value),]
+full_AUC_FDR <- full_AUC_FDR[rownames(full_C_value),]
+```
+
+2. 热图的绘制：
+```
+library(ComplexHeatmap)
+library(circlize)
+
+# 标注特定的行名，可自定义
+label_row <- c("Arachidonic acid metabolism","Linoleic acid metabolism","Pyrimidine metabolism",
+               "Glycosphingolipid biosynthesis - lacto and neolacto series","Tryptophan metabolism",
+               "Inositol phosphate metabolism","Arginine biosynthesis","Nicotinate and nicotinamide metabolism","Sphingolipid metabolism","Oxidative phosphorylation",
+               "Cholesterol metabolism","Steroid biosynthesis","Glycosphingolipid biosynthesis - globo and isoglobo series")
+label_row_index <- match(label_row,rownames(full_AUC),)
+
+p <- Heatmap(full_AUC,cluster_rows = T,name = "AUC",show_row_dend = F,show_column_dend = F,
+             col = colorRamp2(c(0,0.5,1),c("#3690C0","white","#fa5252")), # 非常漂亮的热图color
+             # 左注释展示Geary-C value以及特定行名
+             left_annotation = rowAnnotation( label = anno_mark(at= label_row_index,labels = label_row,side = "left"),
+                                              C_value = anno_simple(full_C_value[,1],
+                                                                   #pch = as.numeric(as.character(round(full_C_value[,1],2))),
+                                                                   col = colorRamp2(c(0, 0.5, 1), c("#3690C0","white","#fa5252")),
+                                                                   border = T, width = unit(1.5, "cm"),height = unit(2, "cm"))
+                                            ),
+             row_names_side = "left",border = T,row_names_max_width = unit(4, "cm"),show_row_names = F,
+             # 热图单元格展示FDR
+             cell_fun = function(j, i, x, y, width, height, fill) {
+               if(full_AUC_FDR[i, j] < 0.05)
+                 grid.text("*", x, y, gp = gpar(fontsize = 12))
+             })
+
+p
+```
+[pathway_AUC_C_value_Heatmap2.pdf](https://github.com/user-attachments/files/19001200/pathway_AUC_C_value_Heatmap2.pdf)
 
 
 
