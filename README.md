@@ -4,8 +4,8 @@ general analysis for all RNA-Seq
 # 目录
 
 - [从GEO数据库中根据GEO编号获取micro Array矩阵及注释数据](#micro-Array)
-
-
+- [基因集打分策略](#micro-Array)
+-- [使用VISION](#micro-Array)
 
 ## micro-Array
 
