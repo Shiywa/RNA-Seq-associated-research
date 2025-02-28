@@ -6,7 +6,7 @@ general analysis for all RNA-Seq
 - [从GEO数据库中根据GEO编号获取micro Array矩阵及注释数据](#micro-Array)
 - [基因集打分策略](#基因集打分策略)
   - [使用VISION](#VISION)
-  - [使用GSVA](#micro-Array)
+  - [使用GSVA](#GSVA&ssGSEA)
   
 ## micro-Array
 
@@ -166,7 +166,7 @@ p
 ```
 <img width="667" alt="image" src="https://github.com/user-attachments/assets/b7acdce7-a43c-4441-a4a9-883310e4df3f" />
 
-### GSVA & ssGSEA
+### GSVA&ssGSEA
 
 两种方法都被包装在`GSVA`这个包里面了，这两种方法的思想是非常相似的，都是给予单个样本里面的基因表达rank来进行富集分析，但是两种方法所用到的累积函数是不一样的，此外GSVA方法依赖其他样本的表达情况
 ssGSEA则更加独立。
