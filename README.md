@@ -92,6 +92,7 @@ exp <- exp[,grep("^GSM",colnames(exp))]
 在确定了对应特征集在多维空间具有特异性活性后，基于细胞注释信息，使用**AUCell**评估不同细胞类型中该特征集的AUC score。
 
 ```
+library(VISION)
 count <- Assay.obj@assays$RNA@counts
 n.umi <- colSums(count)
 scaled_counts <- t(t(count) / n.umi) * median(n.umi)
@@ -164,6 +165,118 @@ p <- Heatmap(full_AUC,cluster_rows = T,name = "AUC",show_row_dend = F,show_colum
 p
 ```
 <img width="667" alt="image" src="https://github.com/user-attachments/assets/b7acdce7-a43c-4441-a4a9-883310e4df3f" />
+
+### GSVA & ssGSEA
+
+两种方法都被包装在`GSVA`这个包里面了，这两种方法的思想是非常相似的，都是给予单个样本里面的基因表达rank来进行富集分析，但是两种方法所用到的累积函数是不一样的，此外GSVA方法依赖其他样本的表达情况
+ssGSEA则更加独立。
+
+新的`GSVA`更新了对于这两种方法的使用方式：
+
+1. GSVA
+```
+# 读取基因集
+gene_sets <- getGmt("KEGG_metabolism_pathway.gmt")
+
+# 提取基因集名称和对应基因转换为list
+gene_sets_list <- lapply(gene_sets, geneIds)
+
+# 设置 list 的名称为基因集名称
+names(gene_sets_list) <- names(gene_sets)
+
+# 设置并行参数，使用所有可用 CPU 核心
+bpparam <- MulticoreParam(workers = parallel::detectCores() - 20)  
+
+# 构建input，设置所用参数，使用gsva方法分析
+gsvapar <- gsvaParam(mtx, gene_sets_list,
+                     kcdf = "Gaussian",
+                     maxDiff = T, 
+                     absRanking=FALSE,
+                     tau = 1,
+                     sparse = T)
+
+# 运行 GSVA
+gsva_results <- gsva(
+  gsvapar,BPPARAM = bpparam
+)
+
+```
+2. ssGSEA
+
+```
+ssgseapar <- ssgseaParam(mtx, gene_sets_list)
+
+ssgsea_results <- gsva(
+  ssgseapar,BPPARAM = bpparam
+)
+```
+
+对两种方法进行比较可以发现，**GSVA**更易受到低表达基因的影响，此外**GSVA**由于依赖所有样本的数据，对于批次效应更加敏感，所以**ssGSEA**更加适合单细胞多样本数据，当然两种方法可以整合起来一起分析。
+
+### 通路核心基因挖掘
+
+确定通路活性以后往往希望挖掘是否存在critical feature对于通路有重要作用，目前比较基本的思路就是：
+1. 跟通路活性评分高相关的feature；
+2. 基底表达量比较高的feature。（更易于解释）
+
+热图方便展示，以下是我写的一个展示潜在重要基因的热图
+```
+# 首先是SCP中的PrepareDB函数获得小鼠的KEGG数据
+library(SCP)
+db_list <- PrepareDB(species = "Mus_musculus", db = c("KEGG","Reactome"))
+db_KEGG <- db_list$Mus_musculus$KEGG
+
+# 然后获得通路全部基因
+ge1 <- db_KEGG$TERM2GENE$symbol[which(db_KEGG$TERM2GENE$Term == db_KEGG$TERM2NAME$Term[which(db_KEGG$TERM2NAME$Name == i)])]
+
+# 计算各个通路平均表达量以绘制热图主体
+library(Seurat)
+avg_exp_matrix <- AverageExpression(mock.ctrl.mac.obj, return.seurat = FALSE,assays = "RNA",features = ge1,group.by = "deve_anno")
+avg_exp_matrix <- avg_exp_matrix$RNA
+avg_exp_matrix <- avg_exp_matrix[rowSums(avg_exp_matrix) != 0,]
+avg_exp_matrix2 <- t(scale(t(avg_exp_matrix)))
+
+# 计算每个基因与三种富集方法得到的通路活性的相关性，这里用了spearman，不限于线性相关  
+cor_results1 <- apply(vis@exprData[rownames(avg_exp_matrix),], 1, function(row) cor(row, VISION_score[,i], use = "pairwise.complete.obs", method = "spearman"))
+cor_results2 <- apply(vis@exprData[rownames(avg_exp_matrix),], 1, function(row) cor(row, ssGSEA_score[,i], use = "pairwise.complete.obs", method = "spearman"))
+cor_results3 <- apply(vis@exprData[rownames(avg_exp_matrix),], 1, function(row) cor(row, GSVA_score[,i], use = "pairwise.complete.obs", method = "spearman"))
+
+# 计算高相关基因，我这里是经验数值，cor > 0.3且cor位于top 25%  
+high_cor_genes1 <- names(which(cor_results1 > quantile(cor_results1, 0.75) & cor_results1 > 0.3))  # 取前25%高AUC细胞
+high_cor_genes2 <- names(which(cor_results2 > quantile(cor_results2, 0.75) & cor_results2 > 0.3))  # 取前25%高AUC细胞
+high_cor_genes3 <- names(which(cor_results3 > quantile(cor_results3, 0.75) & cor_results3 > 0.3))  # 取前25%高AUC细胞
+high_cor_genes <- unique(c(high_cor_genes1,high_cor_genes2,high_cor_genes3))
+
+# 构建热图左注释，包括label、平均表达量以及相关性三部分  
+left_anno = rowAnnotation(label = anno_mark(at= match(high_cor_genes,rownames(avg_exp_matrix)),labels = high_cor_genes,side = "left"),
+                            
+                            avg1 = anno_barplot(avg_exp_matrix[,c("Resting Conv PM")],gp = gpar(fill = new.color3["Resting Conv PM"]),
+                                                axis_param = list(direction = "reverse"),width = unit(1, "cm")),
+                            avg2 = anno_barplot(avg_exp_matrix[,c("Resting Mono-like SPM")],gp = gpar(fill = new.color3["Resting Mono-like SPM"]),
+                                                axis_param = list(direction = "reverse"),width = unit(1, "cm")),
+                            avg3 = anno_barplot(avg_exp_matrix[,c("Resting GLPM")],gp = gpar(fill = new.color3["Resting GLPM"]),
+                                                axis_param = list(direction = "reverse"),width = unit(1, "cm")),
+                            VISION = anno_barplot(cor_results1, baseline = 0,axis_param = list(direction = "reverse"),width = unit(2, "cm"),
+                                               gp = gpar(fill = "#1B9E77")),
+                            ssGSEA = anno_barplot(cor_results2, baseline = 0,axis_param = list(direction = "reverse"),width = unit(2, "cm"),
+                                               gp = gpar(fill = "#D95F02")),
+                            GSVA = anno_barplot(cor_results3, baseline = 0,axis_param = list(direction = "reverse"),width = unit(2, "cm"),
+                                               gp = gpar(fill = "#7570B3")))
+  
+  # 热图绘制
+p <- Heatmap(avg_exp_matrix2,cluster_rows = T,cluster_columns = T,name = "zscore",show_row_dend = F,show_column_dend = F,
+               col = colorRamp2(c(-2,0,2),c("#3690C0","white","#fa5252")),top_annotation = top_anno,
+               left_annotation = left_anno,
+               row_names_side = "left",border = T,row_names_max_width = unit(4, "cm"),show_row_names = F,
+               width = unit(dim(avg_exp_matrix)[2]*0.8, "cm"), height = unit(dim(avg_exp_matrix)[1]*0.3, "cm"))
+
+lgd_title = Legend(pch = " ", type = "points", labels = i)
+
+# 绘制的时候控制好热图的边界距离，同时添加一个pathway label
+pdf("plot.pdf",height = 15,width = 15)
+draw(p, heatmap_legend_side = "right", padding = unit(c(4, 5, 2, 2), "mm"),annotation_legend_list = list(lgd_title))
+dev.off()
+```
 
 
 
