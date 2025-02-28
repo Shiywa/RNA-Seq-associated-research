@@ -277,6 +277,7 @@ pdf("plot.pdf",height = 15,width = 15)
 draw(p, heatmap_legend_side = "right", padding = unit(c(4, 5, 2, 2), "mm"),annotation_legend_list = list(lgd_title))
 dev.off()
 ```
+<img width="925" alt="image" src="https://github.com/user-attachments/assets/fb21830d-0d51-481f-86f5-eeb4e366dffb" />
 
 
 
