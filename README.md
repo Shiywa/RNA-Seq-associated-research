@@ -7,7 +7,7 @@ general analysis for all RNA-Seq
 - [基因集打分策略](#基因集打分策略)
   - [使用VISION](#VISION)
   - [使用GSVA](#GSVAssGSEA)
-  
+  - [挖掘通路中的重要贡献基因](#通路核心基因挖掘)
 ## micro-Array
 
 ### 将GEO的micro array文件转换为matrix文件
